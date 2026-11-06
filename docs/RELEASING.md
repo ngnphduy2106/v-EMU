@@ -93,6 +93,10 @@ README/MANUAL download links and remove any "installer planned" wording.
 
 ## 5. Release notes checklist
 
+Keep the release body in `docs/release-notes/<version>.md` so the notes are
+versioned with the source. The GitHub Release uses that text and the two assets
+above.
+
 - version, supported host tiers and known limits;
 - new/fixed/removed features that affect users;
 - installer and source-install instructions;

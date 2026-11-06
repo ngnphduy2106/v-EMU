@@ -117,6 +117,7 @@ Create lab storage and a NAT network from the first-run wizard, or from
 | [`GRAPHICS.md`](GRAPHICS.md) | Video models, sleep/resume and guest trade-offs |
 | [`docs/USER-GUIDE.md`](docs/USER-GUIDE.md) | Concise in-app guide |
 | [`docs/RELEASING.md`](docs/RELEASING.md) | Public `.run` build, clean-host test and GitHub release process |
+| [`docs/release-notes/v0.1.0.md`](docs/release-notes/v0.1.0.md) | Release notes for 0.1.0 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Issues, pull requests and scope |
 | [`SECURITY.md`](SECURITY.md) | Vulnerability reporting and trust model |
 | [`DISCLAIMER.md`](DISCLAIMER.md) | Warranty, data/backup and liability terms |
