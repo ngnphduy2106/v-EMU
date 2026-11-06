@@ -130,6 +130,7 @@ Create lab storage and a NAT network from the first-run wizard, or from
 - macOS guests;
 - live snapshots (snapshots are offline, chain-based);
 - X11 guest clipboard/integration;
+- container management or orchestration (Docker, Podman, Kubernetes);
 - a general-purpose replacement for Proxmox/oVirt/Incus.
 
 ## License

@@ -170,6 +170,8 @@ These are product decisions, not missing implementation details:
 - no VNC clipboard as a guest clipboard peer;
 - no automatic Sysprep or automatic post-creation video-model changes;
 - QXL is a manual compatibility option, not the default;
+- no container management or orchestration; v-EMU does not replace
+  Docker/Podman/Kubernetes tooling;
 - no general-purpose replacement for Proxmox/oVirt/Incus.
 
 ## 10. Tests and evidence

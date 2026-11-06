@@ -459,7 +459,8 @@ Wayland, `wl-clipboard` and QGA `guest-exec` (X11 is out of scope), so guests
 that block `guest-exec` must use a VirtioFS share; 125%
 does not fit a 1440×900 display; v-EMU is
 single-host/local-only. Use one display and Linux workspaces rather than
-multi-monitor.
+multi-monitor. v-EMU does not manage containers or replace Docker/Podman/
+Kubernetes tooling.
 
 ## 11. CLI cheat sheet
 

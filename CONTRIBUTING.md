@@ -57,7 +57,8 @@ Every PR must:
 - not add a new dependency, storage backend, network backend or host distro
   without prior discussion and validation;
 - not extend the project into remote/web/multi-user, clustering, live
-  migration, HA, GPU/3D passthrough or macOS guest support.
+  migration, HA, GPU/3D passthrough, macOS guest or container-orchestration
+  support.
 
 UI changes should be checked in the offscreen test suite and, where practical,
 with a screenshot of the dialog at its normal size.

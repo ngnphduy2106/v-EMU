@@ -737,7 +737,8 @@ and Linux workspaces rather than multi-monitor.
 - The in-app **Guide** is concise and self-contained. Use this manual for
   install, technical and troubleshooting details.
 - Limits: single host, one user, no cluster/HA/live migration, no web console,
-  no 3D/GPU passthrough, no macOS guests, offline snapshots only.
+  no 3D/GPU passthrough, no macOS guests, offline snapshots only, no container
+  orchestration.
 - Wayland is the supported session; X11 clipboard/integration is out of scope.
 - The UI targets one display; use Linux workspaces instead of multi-monitor.
 - UI scale 125% is supported on FullHD; the 1280×720 logical minimum means 125%
