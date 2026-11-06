@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vemu"
+version = "0.1.0"
+description = "Lab-first desktop virtualization for Linux, built on QEMU/KVM and libvirt"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "CoreSystem" }]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/withcoresystem/v-EMU"
+Repository = "https://github.com/withcoresystem/v-EMU"
+Issues = "https://github.com/withcoresystem/v-EMU/issues"
+
+[project.optional-dependencies]
+libvirt = ["libvirt-python"]
+ui = ["PySide6"]
+
+[project.scripts]
+vemu = "vemu.cli:main"
+vemu-ui = "vemu.ui.app:main"
+vemud = "vemu.daemon:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+vemu = ["py.typed"]
+"vemu.ui" = [
+    "assets/*.svg",
+    "assets/network_map/*.svg",
+    "assets/icons/*.svg",
+    "assets/icons/LICENSE-*",
+    "assets/icons/NOTICE-*",
+    "assets/fonts/*.ttf",
+    "assets/fonts/LICENSE-*",
+]

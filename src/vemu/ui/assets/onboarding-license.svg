@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="License">
+  <path d="M14 6h26l12 12v40a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#0f766e"/>
+  <path d="M40 6v12h12" fill="#ccfbf1" opacity=".85"/>
+  <path d="M20 30h24M20 38h24M20 46h14" stroke="#ccfbf1" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="46" cy="48" r="10" fill="#ccfbf1"/>
+  <path d="M41 48l3 3 6-7" fill="none" stroke="#0f766e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

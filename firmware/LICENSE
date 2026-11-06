@@ -1,0 +1,7 @@
+This firmware distribution contains components under multiple licenses.
+The complete texts are in the licenses/ directory.
+
+- EDK II / OVMF: BSD-2-Clause-Patent (licenses/edk2.txt, licenses/ovmf.txt)
+- OpenSSL (via CryptoPkg): Apache License 2.0 (licenses/openssl.txt)
+
+See NOTICE for attribution and the list of v-EMU modifications.

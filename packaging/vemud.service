@@ -1,0 +1,17 @@
+[Unit]
+Description=v-EMU daemon
+Documentation=https://github.com/withcoresystem/v-EMU
+After=libvirtd.service virtqemud.socket virtnetworkd.service virtstoraged.service
+Wants=virtqemud.socket virtnetworkd.service virtstoraged.service
+
+[Service]
+Type=simple
+Group=vemu
+ExecStart=/usr/bin/vemud --foreground
+RuntimeDirectory=vemu
+RuntimeDirectoryMode=0750
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

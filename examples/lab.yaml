@@ -1,0 +1,39 @@
+# Minimal v-EMU lab definition.
+# Adjust dest/templates_root and template names for your host.
+version: 1
+lab: rhcsa-practice
+dest: /home/VM/vemu-labs/rhcsa-practice
+templates_root: /home/VM/vemu-templates
+
+networks:
+  mgmt:
+    mode: nat
+    subnet: auto
+  server:
+    mode: isolated
+    subnet: 192.168.50.0/24
+
+vms:
+  node1:
+    template: fedora-44-cloud
+    cpus: 2
+    memory: 2G
+    networks: [mgmt, server]
+    ip:
+      server: 192.168.50.11
+    cloud_init:
+      user: lab
+      ssh_key: ~/.ssh/id_ed25519.pub
+      packages: [vim, tcpdump]
+
+  node2:
+    template: fedora-44-cloud
+    cpus: 1
+    memory: 1G
+    networks: [server]
+    ip:
+      server: 192.168.50.12
+    cloud_init:
+      user: lab
+      ssh_key: ~/.ssh/id_ed25519.pub
+      packages: [vim]

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=v-EMU
+GenericName=Virtual machine manager
+Comment=Lab-first desktop virtualization for QEMU/KVM and libvirt
+Exec=vemu ui
+TryExec=vemu
+Icon=org.vemu.VEMU
+Terminal=false
+Categories=System;Emulator;
+Keywords=virtualization;vm;qemu;kvm;libvirt;lab;
+StartupNotify=true
+StartupWMClass=org.vemu.VEMU

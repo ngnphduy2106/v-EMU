@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>v-EMU serial console</title>
+  <link rel="stylesheet" href="xterm.css">
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b0f14; overflow: hidden; }
+    #terminal { position: absolute; inset: 8px; }
+    .xterm { height: 100%; }
+    .xterm-viewport { scrollbar-color: #36505a #0b0f14; }
+    #serial-menu {
+      display: none; position: fixed; z-index: 10; min-width: 130px;
+      background: #16212b; border: 1px solid #36505a; border-radius: 4px;
+      box-shadow: 0 6px 18px #0009; padding: 4px 0;
+      font: 13px system-ui, sans-serif; color: #d7e0ea;
+    }
+    #serial-menu button {
+      display: block; width: 100%; border: 0; background: transparent;
+      color: inherit; text-align: left; padding: 6px 12px; cursor: pointer;
+    }
+    #serial-menu button:hover { background: #2e6f74; }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+  <div id="serial-menu" role="menu">
+    <button id="serial-copy" role="menuitem">Copy selection</button>
+    <button id="serial-paste" role="menuitem">Paste</button>
+  </div>
+  <script src="xterm.js"></script>
+  <script src="addon-fit.js"></script>
+  <script src="qwebchannel.js"></script>
+  <script>
+    const term = new Terminal({
+      cursorBlink: true,
+      convertEol: false,
+      scrollback: 10000,
+      fontFamily: 'DejaVu Sans Mono, Liberation Mono, monospace',
+      fontSize: 14,
+      theme: {
+        background: '#0b0f14',
+        foreground: '#d7e0ea',
+        cursor: '#22b8a6',
+        selectionBackground: '#2e6f74'
+      }
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById('terminal'));
+    fit.fit();
+
+    let bridge = null;
+    const resize = () => {
+      try { fit.fit(); } catch (_) {}
+    };
+    window.addEventListener('resize', resize);
+    new ResizeObserver(resize).observe(document.getElementById('terminal'));
+
+    const menu = document.getElementById('serial-menu');
+    const copyButton = document.getElementById('serial-copy');
+    const pasteButton = document.getElementById('serial-paste');
+
+    const copySelection = () => {
+      const text = term.getSelection();
+      if (text && bridge) bridge.copy(text);
+      return text;
+    };
+    const pasteClipboard = () => {
+      if (!bridge) return;
+      // QWebChannel passes the return value to the trailing callback.
+      bridge.paste(function (text) {
+        if (text) term.paste(text);
+      });
+    };
+    const hideMenu = () => { menu.style.display = 'none'; };
+
+    copyButton.addEventListener('click', () => {
+      copySelection();
+      hideMenu();
+      term.focus();
+    });
+    pasteButton.addEventListener('click', () => {
+      pasteClipboard();
+      hideMenu();
+      term.focus();
+    });
+    document.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      copyButton.disabled = !term.hasSelection();
+      menu.style.left = event.clientX + 'px';
+      menu.style.top = event.clientY + 'px';
+      menu.style.display = 'block';
+    });
+    document.addEventListener('click', hideMenu);
+
+    term.attachCustomKeyEventHandler(function (event) {
+      if (event.type !== 'keydown') return true;
+      if (event.ctrlKey && event.shiftKey && event.code === 'KeyC') {
+        copySelection();
+        return false;
+      }
+      if (event.ctrlKey && event.shiftKey && event.code === 'KeyV') {
+        pasteClipboard();
+        return false;
+      }
+      if (event.shiftKey && event.code === 'Insert') {
+        pasteClipboard();
+        return false;
+      }
+      if (event.ctrlKey && event.code === 'Insert') {
+        copySelection();
+        return false;
+      }
+      return true;
+    });
+
+    new QWebChannel(qt.webChannelTransport, function (channel) {
+      bridge = channel.objects.serial;
+      bridge.dataReceived.connect(function (data) {
+        term.write(data);
+      });
+      term.onData(function (data) {
+        if (bridge) bridge.send(data);
+      });
+      term.onResize(function (size) {
+        if (bridge) bridge.resize(size.cols, size.rows);
+      });
+      bridge.ready();
+    });
+  </script>
+</body>
+</html>

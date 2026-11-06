@@ -1,0 +1,207 @@
+diff --git a/ArmVirtPkg/ArmVirtQemu.dsc b/ArmVirtPkg/ArmVirtQemu.dsc
+index 7b75ff8..23fdde5 100644
+--- a/ArmVirtPkg/ArmVirtQemu.dsc
++++ b/ArmVirtPkg/ArmVirtQemu.dsc
+@@ -227,7 +227,7 @@
+   gEfiMdeModulePkgTokenSpaceGuid.PcdSmbiosEntryPointProvideMethod|0x2
+ 
+ [PcdsDynamicDefault.common]
+-  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|0
++  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|3
+ 
+   ## PL031 RealTimeClock
+   gArmPlatformTokenSpaceGuid.PcdPL031RtcBase|0x0
+@@ -265,7 +265,7 @@
+   gEfiSecurityPkgTokenSpaceGuid.PcdTpm2AcpiTableRev|L"TCG2_VERSION"|gTcg2ConfigFormSetGuid|0x8|3|NV,BS
+ !endif
+ 
+-  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|L"Timeout"|gEfiGlobalVariableGuid|0x0|0
++  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|L"Timeout"|gEfiGlobalVariableGuid|0x0|3
+ 
+ [LibraryClasses.common.PEI_CORE, LibraryClasses.common.PEIM]
+ !if $(TPM2_ENABLE) == TRUE
+diff --git a/ArmVirtPkg/Library/QemuVirtMemInfoLib/QemuVirtMemInfoLib.c b/ArmVirtPkg/Library/QemuVirtMemInfoLib/QemuVirtMemInfoLib.c
+index 7c6d84d..f96f132 100644
+--- a/ArmVirtPkg/Library/QemuVirtMemInfoLib/QemuVirtMemInfoLib.c
++++ b/ArmVirtPkg/Library/QemuVirtMemInfoLib/QemuVirtMemInfoLib.c
+@@ -19,7 +19,7 @@
+ #include <Library/FdtLib.h>
+ 
+ // Number of Virtual Memory Map Descriptors
+-#define MAX_VIRTUAL_MEMORY_MAP_DESCRIPTORS  (5)
++#define MAX_VIRTUAL_MEMORY_MAP_DESCRIPTORS  (8)
+ 
+ /** A macro to trace the memory map.
+ **/
+@@ -254,6 +254,19 @@ ArmVirtGetMemoryMap (
+   LOG_MEM_MAP ("System DRAM");
+   Idx++;
+ 
++  //
++  // QEMU/mach-virt maps its core peripherals (UART, RTC, GIC, virtio-mmio
++  // and the TPM TIS window) in the miscellaneous device I/O region. Map the
++  // whole window so PEIMs such as Tcg2Pei can reach the TPM before DXE
++  // installs the GCD memory map.
++  //
++  VirtualMemoryTable[Idx].PhysicalBase = 0x08000000;
++  VirtualMemoryTable[Idx].VirtualBase  = 0x08000000;
++  VirtualMemoryTable[Idx].Length       = SIZE_128MB;
++  VirtualMemoryTable[Idx].Attributes   = ARM_MEMORY_REGION_ATTRIBUTE_DEVICE;
++  LOG_MEM_MAP ("Peripherals");
++  Idx++;
++
+   // Map the FV region as normal executable memory
+   VirtualMemoryTable[Idx].PhysicalBase = PcdGet64 (PcdFvBaseAddress);
+   VirtualMemoryTable[Idx].VirtualBase  = VirtualMemoryTable[Idx].PhysicalBase;
+diff --git a/MdeModulePkg/Application/UiApp/FrontPageStrings.uni b/MdeModulePkg/Application/UiApp/FrontPageStrings.uni
+index bd6e377..c6a9aa5 100644
+--- a/MdeModulePkg/Application/UiApp/FrontPageStrings.uni
++++ b/MdeModulePkg/Application/UiApp/FrontPageStrings.uni
+@@ -14,7 +14,7 @@
+ #langdef   en    "Standard English"
+ #langdef   fr    "Standard Français"
+ 
+-#string STR_FRONT_PAGE_TITLE           #language en-US  "Front Page"
++#string STR_FRONT_PAGE_TITLE           #language en-US  "v-EMU Setup"
+                                        #language fr-FR  "Front Page"
+ #string STR_FRONT_PAGE_COMPUTER_MODEL  #language en-US  ""
+                                        #language fr-FR  ""
+diff --git a/MdeModulePkg/Library/BootManagerUiLib/BootManagerStrings.uni b/MdeModulePkg/Library/BootManagerUiLib/BootManagerStrings.uni
+index 2fcb9a2..c2f5f3c 100644
+--- a/MdeModulePkg/Library/BootManagerUiLib/BootManagerStrings.uni
++++ b/MdeModulePkg/Library/BootManagerUiLib/BootManagerStrings.uni
+@@ -19,7 +19,7 @@
+ #langdef   en-US "English"
+ #langdef   fr-FR "Français"
+ 
+-#string STR_BM_BANNER                  #language en-US  "Boot Manager"
++#string STR_BM_BANNER                  #language en-US  "v-EMU Boot Manager"
+                                        #language fr-FR  "Boot Manager"
+ #string STR_BOOT_MANAGER_HELP          #language en-US  "This selection will take you to the Boot Manager"
+                                        #language fr-FR  "This selection will take you to the Boot Manager"
+@@ -27,7 +27,7 @@
+                                        #language fr-FR  "<↑> pour <↓> changer l'option, <ENTRER> choisir une option, <ESC> pour sortir"
+ #string STR_AND                        #language en-US  " and "
+                                        #language fr-FR  " et "
+-#string STR_BOOT_OPTION_BANNER         #language en-US  "Boot Manager Menu"
++#string STR_BOOT_OPTION_BANNER         #language en-US  "v-EMU Boot Manager Menu"
+                                        #language fr-FR  "le Menu d'Option de Botte"
+ #string STR_ANY_KEY_CONTINUE           #language en-US  "Press any key to continue..."
+                                        #language fr-FR  "Appuie n'importe quelle pour continuer..."
+diff --git a/OvmfPkg/OvmfPkgX64.dsc b/OvmfPkg/OvmfPkgX64.dsc
+index db1d9f5..f486d41 100644
+--- a/OvmfPkg/OvmfPkgX64.dsc
++++ b/OvmfPkg/OvmfPkgX64.dsc
+@@ -724,7 +724,7 @@
+   gUefiOvmfPkgTokenSpaceGuid.PcdPciMmio64Base|0x0
+   gUefiOvmfPkgTokenSpaceGuid.PcdPciMmio64Size|0x800000000
+ 
+-  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|0
++  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|3
+ 
+   # Set video resolution for text setup.
+   gEfiMdeModulePkgTokenSpaceGuid.PcdSetupVideoHorizontalResolution|640
+diff --git a/OvmfPkg/QemuRamfbDxe/QemuRamfb.c b/OvmfPkg/QemuRamfbDxe/QemuRamfb.c
+index 5a1044f..ba3f62a 100644
+--- a/OvmfPkg/QemuRamfbDxe/QemuRamfb.c
++++ b/OvmfPkg/QemuRamfbDxe/QemuRamfb.c
+@@ -54,6 +54,22 @@ STATIC EFI_GRAPHICS_OUTPUT_MODE_INFORMATION  mQemuRamfbModeInfo[] = {
+     0,    // Version
+     1024, // HorizontalResolution
+     768,  // VerticalResolution
++  },{
++    0,    // Version
++    1280, // HorizontalResolution
++    800,  // VerticalResolution
++  },{
++    0,    // Version
++    1366, // HorizontalResolution
++    768,  // VerticalResolution
++  },{
++    0,    // Version
++    1440, // HorizontalResolution
++    900,  // VerticalResolution
++  },{
++    0,    // Version
++    1920, // HorizontalResolution
++    1080, // VerticalResolution
+   }
+ };
+ 
+@@ -314,9 +330,61 @@ InitializeQemuRamfb (
+   mQemuRamfbMode.FrameBufferBase = FbBase;
+ 
+   //
+-  // 800 x 600
++  // Default mode: overridable at run time through the fw_cfg item
++  // "opt/ramfb/mode" (a decimal mode index), so QEMU can pick the boot
++  // resolution without rebuilding this firmware:
++  //   -fw_cfg name=opt/ramfb/mode,string=3
++  // Falls back to 1280x800 (mode 3) when the item is absent or invalid.
+   //
+-  QemuRamfbGraphicsOutputSetMode (&mQemuRamfbGraphicsOutput, 1);
++  {
++    UINTN                 DefaultMode;
++    FIRMWARE_CONFIG_ITEM  ModeItem;
++    UINTN                 ModeItemSize;
++    CHAR8                 ModeBuf[16];
++    UINTN                 Idx;
++    UINTN                 Value;
++
++    DefaultMode = 3;
++    if (!EFI_ERROR (
++          QemuFwCfgFindFile ("opt/ramfb/mode", &ModeItem, &ModeItemSize)
++          ) &&
++        (ModeItemSize > 0) && (ModeItemSize < sizeof (ModeBuf)))
++    {
++      QemuFwCfgSelectItem (ModeItem);
++      QemuFwCfgReadBytes (ModeItemSize, ModeBuf);
++      Value = 0;
++      for (Idx = 0; Idx < ModeItemSize; Idx++) {
++        if ((ModeBuf[Idx] >= '0') && (ModeBuf[Idx] <= '9')) {
++          Value = Value * 10 + (ModeBuf[Idx] - '0');
++        } else if ((ModeBuf[Idx] == '\0') ||
++                   (ModeBuf[Idx] == '\r') ||
++                   (ModeBuf[Idx] == '\n'))
++        {
++          break;
++        } else {
++          Value = (UINTN)-1;
++          break;
++        }
++      }
++
++      if (Value < ARRAY_SIZE (mQemuRamfbModeInfo)) {
++        DefaultMode = Value;
++      }
++    }
++
++    DEBUG ((
++      DEBUG_INFO,
++      "Ramfb: default mode %lu (%ux%u)\n",
++      (UINT64)DefaultMode,
++      mQemuRamfbModeInfo[DefaultMode].HorizontalResolution,
++      mQemuRamfbModeInfo[DefaultMode].VerticalResolution
++      ));
++
++    QemuRamfbGraphicsOutputSetMode (
++      &mQemuRamfbGraphicsOutput,
++      (UINT32)DefaultMode
++      );
++  }
+ 
+   //
+   // ramfb vendor devpath
+diff --git a/OvmfPkg/RiscVVirt/Library/PlatformBootManagerLib/PlatformBm.c b/OvmfPkg/RiscVVirt/Library/PlatformBootManagerLib/PlatformBm.c
+index 44fd21f..55ff737 100644
+--- a/OvmfPkg/RiscVVirt/Library/PlatformBootManagerLib/PlatformBm.c
++++ b/OvmfPkg/RiscVVirt/Library/PlatformBootManagerLib/PlatformBm.c
+@@ -35,7 +35,7 @@
+ 
+ #define DP_NODE_LEN(Type)  { (UINT8)sizeof (Type), (UINT8)(sizeof (Type) >> 8) }
+ 
+-#define VERSION_STRING_PREFIX  L"RISC-V EDK2 firmware version "
++#define VERSION_STRING_PREFIX  L"v-EMU firmware version "
+ 
+ #pragma pack (1)
+ typedef struct {

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="v-EMU virtualization">
+  <rect width="128" height="128" rx="24" fill="#0f766e"/>
+  <rect x="40" y="22" width="64" height="40" rx="6" fill="#0f766e" stroke="#ccfbf1" stroke-width="5"/>
+  <rect x="24" y="40" width="64" height="40" rx="6" fill="#0f766e" stroke="#ffffff" stroke-width="5"/>
+  <path d="M48 51 L64 60 L48 69 Z" fill="#ffffff"/>
+  <rect x="36" y="88" width="56" height="6" rx="3" fill="#ccfbf1"/>
+  <circle cx="34" cy="100" r="4" fill="#ccfbf1"/>
+  <circle cx="48" cy="100" r="4" fill="#ccfbf1"/>
+</svg>

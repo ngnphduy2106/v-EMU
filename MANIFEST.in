@@ -1,0 +1,15 @@
+include README.md
+include GRAPHICS.md
+include MANUAL.md
+include NOTICE
+include DISCLAIMER.md
+include LICENSE
+include setup.sh
+recursive-include src/vemu/ui/web/novnc *
+recursive-include src/vemu/ui/assets *
+include src/vemu/py.typed
+recursive-include tests *.py
+recursive-include docs *.md
+recursive-include packaging *
+recursive-include firmware *
+recursive-include examples *

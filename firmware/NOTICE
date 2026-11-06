@@ -1,0 +1,23 @@
+v-EMU UEFI firmware
+Copyright (c) 2026 v-EMU contributors.
+
+This firmware is built from TianoCore EDK II
+(https://github.com/tianocore/edk2), commit 5a52bd1, and is distributed under
+the BSD-2-Clause-Patent license. See LICENSE and licenses/edk2.txt,
+licenses/ovmf.txt and licenses/openssl.txt.
+
+v-EMU modifications:
+- 1280x800 default boot resolution for x64, aarch64 and riscv64.
+- QemuRamfbDxe mode list and default 1280x800 (fw_cfg override kept).
+- v-EMU boot logo and boot-manager strings.
+- TPM 2.0 enabled for x64, aarch64 and riscv64 builds.
+- x64 Secure Boot build with SMM, plus a dual-CA (2011+2023) VARS template
+  derived from the stock Fedora 44 OVMF_VARS_4M.secboot image (format
+  conversion only; no certificates added or removed).
+- FD_SIZE/flash packaging as described in README.md.
+
+The TianoCore logo is not included. The v-EMU logo in boot-logo.bmp is
+original artwork for this project.
+
+EDK II copyright notices and license headers are retained in the source
+patches. Binary redistribution includes the license texts in this directory.

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lab network">
+  <circle cx="32" cy="30" r="20" fill="none" stroke="#0f766e" stroke-width="5"/>
+  <path d="M12 30h40M32 10c8 8 8 32 0 40M32 10c-8 8-8 32 0 40" fill="none" stroke="#0f766e" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="32" cy="30" r="4" fill="#0f766e"/>
+  <circle cx="52" cy="52" r="6" fill="#ccfbf1" stroke="#0f766e" stroke-width="4"/>
+  <circle cx="12" cy="52" r="6" fill="#ccfbf1" stroke="#0f766e" stroke-width="4"/>
+  <path d="M18 50l9-14M46 50l-9-14" stroke="#0f766e" stroke-width="3" stroke-linecap="round"/>
+</svg>

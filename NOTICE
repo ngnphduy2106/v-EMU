@@ -1,0 +1,16 @@
+v-EMU
+Copyright (c) 2026 v-EMU contributors.
+
+v-EMU is licensed under GPL-3.0-or-later. See LICENSE.
+
+Bundled third-party components and assets have their own licenses:
+- EDK II / OVMF firmware: BSD-2-Clause-Patent; see firmware/NOTICE and
+  firmware/licenses/.
+- Inter and JetBrains Mono fonts: SIL Open Font License 1.1; see
+  src/vemu/ui/assets/fonts/LICENSE-*.
+- Clarity icons: MIT; see src/vemu/ui/assets/icons/LICENSE-Clarity.txt and
+  NOTICE-Clarity.txt.
+- noVNC: see src/vemu/ui/web/novnc/LICENSE.txt.
+- xterm.js: see src/vemu/ui/web/terminal/XTERM-LICENSE.txt.
+
+The v-EMU boot logo is original artwork; the TianoCore logo is not included.
