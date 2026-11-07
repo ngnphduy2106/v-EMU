@@ -749,3 +749,6 @@ and Linux workspaces rather than multi-monitor.
   does not fit a 1440×900 display.
 - TCG cross-architecture guests are functional but slow; RISC-V is slower than
   ARM64.
+- Firmware/platform version `1.0` is independent of the vEMU application
+  release. Normal code releases do not rebuild firmware or change SMBIOS; new
+  x86_64 VMs expose `1.0`, existing VMs keep the identity recorded at creation.

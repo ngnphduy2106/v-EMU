@@ -26,6 +26,11 @@ Bump it only when the firmware, EDK2 pin, patch, logo or Secure Boot CA change;
 application releases do not require a firmware rebuild. New x86_64 VMs use the
 same platform version in SMBIOS.
 
+**Release rule:** do not run `build.sh`, change `VERSION` or edit `SHA256SUMS`
+for a normal application release. Verify `sha256sum -c SHA256SUMS` and reuse
+the existing firmware. Later releases stay focused on code fixes and roadmap
+features instead of repeating a firmware build.
+
 ## Source and licenses
 
 - EDK II: `https://github.com/tianocore/edk2`, commit `5a52bd1`.

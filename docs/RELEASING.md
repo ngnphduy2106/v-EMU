@@ -29,6 +29,25 @@ QT_QPA_PLATFORM=offscreen .venv/bin/python -m pytest -q
 Update the version in `pyproject.toml`, README/MANUAL release wording and any
 known limitations before tagging.
 
+### Firmware and platform version
+
+Firmware binaries and the SMBIOS platform identity are versioned independently
+from the vEMU application:
+
+- `firmware/VERSION` is currently **1.0**; `system_identity.PLATFORM_VERSION`
+  is the same value.
+- Do **not** run `firmware/build.sh`, change `firmware/VERSION`, or touch
+  `firmware/SHA256SUMS` for a normal application release.
+- Rebuild firmware only when the EDK2 pin, vEMU firmware patch, boot logo,
+  Secure Boot CA/TPM configuration or boot behaviour changes.
+- Application releases (0.1.x, 0.2.x, …) should stay focused on code fixes and
+  roadmap features; they reuse the installed firmware unchanged.
+- If firmware changed, update `firmware/VERSION`, `firmware/SHA256SUMS`,
+  `firmware/README.md`, `docs/FIRMWARE.md` and the firmware/SMBIOS tests in the
+  same change.
+- Before publishing, verify `sha256sum -c firmware/SHA256SUMS`; this is not a
+  reason to rebuild the firmware.
+
 ## 2. Build
 
 ```bash
@@ -92,10 +111,6 @@ no GPG signature is currently produced. After the release exists, update
 README/MANUAL download links and remove any "installer planned" wording.
 
 ## 5. Release notes checklist
-
-Keep the release body in `docs/release-notes/<version>.md` so the notes are
-versioned with the source. The GitHub Release uses that text and the two assets
-above.
 
 - version, supported host tiers and known limits;
 - new/fixed/removed features that affect users;
