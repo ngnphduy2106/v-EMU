@@ -50,6 +50,16 @@ def firmware_root() -> Path:
     return DEFAULT_ROOT
 
 
+def firmware_version() -> str:
+    """Return the installed platform/firmware version, independent of vEMU."""
+    try:
+        return (firmware_root() / "VERSION").read_text(
+            encoding="utf-8"
+        ).strip()
+    except OSError:
+        return ""
+
+
 def secure_boot_available(arch: str = "x86_64") -> bool:
     """True when a Secure Boot firmware pair is installed for the arch."""
     if arch != "x86_64":

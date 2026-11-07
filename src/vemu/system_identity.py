@@ -10,6 +10,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+# Platform/SMBIOS identity is intentionally independent of the vEMU release
+# version. Bump it only for a real firmware/hardware identity change.
+PLATFORM_VERSION = "1.0"
 MANUFACTURER = "CORESYSTEM VN"
 PRODUCT = "vEMU"
 BOARD_PRODUCT = "vEMU Virtual Board"

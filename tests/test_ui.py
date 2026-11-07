@@ -3627,6 +3627,41 @@ class UiTests(unittest.TestCase):
         finally:
             window.close()
 
+    def test_usb_dialog_shows_missing_hostdev(self) -> None:
+        from vemu.ui.usb import UsbDevicesDialog
+
+        class FakeBackend:
+            def usb_devices(self, _domain):
+                return [
+                    {
+                        "vendor": "0x30de",
+                        "product": "0x6544",
+                        "description": "Missing USB device",
+                        "vendor_name": "Not connected",
+                        "bus": "",
+                        "device": "",
+                        "attached": True,
+                        "present": False,
+                        "missing": True,
+                        "hub": False,
+                    }
+                ]
+
+            def vm_usb_detach(self, *_args):
+                return {}
+
+            def vm_usb_attach(self, *_args):
+                return {}
+
+        dialog = UsbDevicesDialog(FakeBackend(), "demo")
+        try:
+            self.assertEqual(dialog.table.item(0, 4).text(), "Missing")
+            dialog.table.selectRow(0)
+            self.assertTrue(dialog.detach_button.isEnabled())
+            self.assertFalse(dialog.attach_button.isEnabled())
+        finally:
+            dialog.close()
+
     def test_vm_config_dialog(self) -> None:
         from vemu.ui.vm_config import VmConfigDialog
 

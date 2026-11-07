@@ -10,7 +10,7 @@ from typing import Any
 from .backend import LibvirtBackend
 from .chain import find_commit_journals
 from .errors import ValidationError, VemuError
-from .firmware import firmware_for, firmware_root
+from .firmware import firmware_for, firmware_root, firmware_version
 from .network import NetworkStore
 from .qemuuser import qemu_identity
 from .storage import StorageStore
@@ -250,7 +250,14 @@ def run_checks(uri: str = "qemu:///system", *, config: str | None = None) -> dic
         _check(
             "v-EMU firmware",
             bool(available_firmware),
-            ", ".join(available_firmware)
+            (
+                ", ".join(available_firmware)
+                + (
+                    f" (firmware {firmware_version()})"
+                    if firmware_version()
+                    else ""
+                )
+            )
             if available_firmware
             else f"not installed under {firmware_root()} "
             "(run ./setup.sh --daemon; stock firmware is used as fallback)",
@@ -380,6 +387,22 @@ def run_checks(uri: str = "qemu:///system", *, config: str | None = None) -> dic
         if drifted:
             drift_check["domains"] = drifted
         checks.append(drift_check)
+        try:
+            with LibvirtBackend(uri) as backend:
+                backend.usb_devices()
+        except VemuError as exc:
+            checks.append(
+                _check(
+                    "USB devices",
+                    False,
+                    str(exc),
+                    required=False,
+                )
+            )
+        else:
+            checks.append(
+                _check("USB devices", True, "nodedev available", required=False)
+            )
     except VemuError as exc:
         checks.append(_check("libvirt", False, str(exc)))
 

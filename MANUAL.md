@@ -147,6 +147,8 @@ Useful defaults:
 - **Driver ISO** is Windows-only, starts empty and accepts any ISO path; leave
   it blank to skip the driver CD.
 - Only Windows Server 2025 has an unattended answer file.
+- New x86_64 VMs expose SMBIOS product `vEMU` and platform version `1.0`
+  (`firmware/VERSION`). This is independent of the vEMU application version.
 - TCG (ARM/RISC-V on an x86_64 host) is opt-in and slow; see
   **Support, versions and limits**.
 
@@ -668,6 +670,8 @@ never changes VM definitions.
 | RAM stat looks wrong | guest balloon driver; `vemu stats --domain <vm>` |
 | Clone identity conflict | Sysprep Windows; cloud-init/offline reset Linux |
 | Secure Boot refusal | signed shim/kernel; unsigned ISO needs Secure Boot off |
+| USB list fails: `virtnodedevd-sock` | run `vemu doctor`; on modular libvirt start `virtnodedevd.socket`; do not run `libvirtd` and `virtqemud` together |
+| VM start fails: `Did not find USB device` | reconnect the device or open **USB Devices** and detach the **Missing** entry; vEMU drops missing devices and starts with a warning |
 
 ```bash
 vemu doctor

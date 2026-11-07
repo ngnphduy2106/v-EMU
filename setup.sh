@@ -344,36 +344,76 @@ enable_virtualization() {
         enable_unit libvirtd
         return
     fi
-    if systemctl is-active --quiet libvirtd; then
-        # Keep an already-running monolithic stack; do not switch it under
-        # existing VMs.
-        enable_unit libvirtd
-        enable_unit virtnetworkd
-        enable_unit virtstoraged
-        enable_unit virtsecretd
-        return
-    fi
+
+    local modular_available=0 libvirtd_active=0 virtqemud_active=0
+    local choice=${VEMU_LIBVIRT_STACK:-} running=0
     if systemctl cat virtqemud.service >/dev/null 2>&1; then
-        # RHEL 10 / Rocky 10 / Fedora / openSUSE default to modular libvirt.
-        # Starting libvirtd as well makes both stacks compete for sockets and
-        # leaves qemu:///system without virtqemud-sock.
+        modular_available=1
+    fi
+    if systemctl is-active --quiet libvirtd; then
+        libvirtd_active=1
+    fi
+    if systemctl is-active --quiet virtqemud; then
+        virtqemud_active=1
+    fi
+    if [[ -n "$choice" && "$choice" != "modular" && "$choice" != "libvirtd" ]]; then
+        echo "Invalid VEMU_LIBVIRT_STACK='$choice' (use modular or libvirtd)." >&2
+        return 1
+    fi
+    if [[ -z "$choice" ]]; then
+        if (( modular_available )); then
+            choice=modular
+        else
+            choice=libvirtd
+        fi
+        if (( modular_available && libvirtd_active && virtqemud_active )); then
+            running=$(virsh -c qemu:///system list --state-running --name \
+                2>/dev/null | sed '/^[[:space:]]*$/d' | wc -l)
+            if (( running > 0 )); then
+                echo "WARNING: libvirtd and virtqemud are both active, but" \
+                    "$running VM(s) are running." >&2
+                echo "v-EMU keeps the current libvirt stack to avoid stopping" \
+                    "them." >&2
+                echo "Fix it after shutting the VMs down:" >&2
+                echo "  sudo systemctl disable --now libvirtd libvirtd.socket" \
+                    "libvirtd-ro.socket libvirtd-admin.socket" >&2
+                echo "  sudo systemctl enable --now virtqemud.socket" \
+                    "virtqemud.service virtnodedevd.socket virtnodedevd.service" >&2
+                echo "Then run ./setup.sh again (or set" \
+                    "VEMU_LIBVIRT_STACK=modular)." >&2
+                return 0
+            fi
+        fi
+    fi
+
+    local -a modular_units=(
+        virtqemud.socket virtqemud.service
+        virtnodedevd.socket virtnodedevd.service
+        virtnetworkd.socket virtnetworkd.service
+        virtstoraged.socket virtstoraged.service
+        virtsecretd.socket virtsecretd.service
+    )
+    if [[ "$choice" == "modular" ]]; then
+        if (( ! modular_available )); then
+            echo "VEMU_LIBVIRT_STACK=modular but virtqemud is not installed." >&2
+            return 1
+        fi
+        echo "Using modular libvirt daemons."
+        "${SUDO[@]}" systemctl disable --now \
+            libvirtd libvirtd.socket libvirtd-ro.socket libvirtd-admin.socket \
+            >/dev/null 2>&1 || true
         local unit
-        for unit in \
-            virtqemud.socket virtqemud.service \
-            virtnetworkd.socket virtnetworkd.service \
-            virtstoraged.socket virtstoraged.service \
-            virtsecretd.socket virtsecretd.service \
-            virtnodedevd.socket virtnodedevd.service; do
+        for unit in "${modular_units[@]}"; do
             enable_unit "$unit"
         done
-        "${SUDO[@]}" systemctl disable \
-            libvirtd libvirtd.socket libvirtd-ro.socket \
-            libvirtd-admin.socket >/dev/null 2>&1 || true
     else
+        echo "Using monolithic libvirtd."
+        local unit
+        for unit in "${modular_units[@]}"; do
+            "${SUDO[@]}" systemctl disable --now "$unit" \
+                >/dev/null 2>&1 || true
+        done
         enable_unit libvirtd
-        enable_unit virtnetworkd
-        enable_unit virtstoraged
-        enable_unit virtsecretd
     fi
 }
 
@@ -697,6 +737,12 @@ verify_firmware_install() {
             return 1
         fi
     done
+    if [[ -f "$src/VERSION" ]]; then
+        if ! cmp -s "$src/VERSION" "$dst/VERSION"; then
+            echo "Firmware verification failed: $dst/VERSION differs" >&2
+            return 1
+        fi
+    fi
     if [[ $cross -eq 0 ]]; then
         echo "Firmware install verified (x64 raw)."
         return 0
@@ -1141,6 +1187,9 @@ install_firmware() {
             "$dst/aarch64/vars-template.raw" \
             "$dst/riscv64/RISCV_VIRT_CODE-pflash.raw" \
             "$dst/riscv64/vars-template.raw"
+    fi
+    if [[ -f "$src/VERSION" ]]; then
+        "${SUDO[@]}" install -m 0644 "$src/VERSION" "$dst/VERSION"
     fi
     for notice in LICENSE NOTICE README.md; do
         if [[ -f "$src/$notice" ]]; then

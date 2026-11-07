@@ -38,7 +38,9 @@ class UsbDevicesDialog(VemuDialog):
         layout.addWidget(title)
         hint = QLabel(
             "Attaching a host USB device removes it from the host and gives "
-            "it to the VM. Detach it before unplugging or handing it back."
+            "it to the VM. Detach it before unplugging or handing it back. "
+            "Entries marked Missing are still in the VM configuration but the "
+            "device is not connected; detach them to keep the VM startable."
         )
         hint.setObjectName("Muted")
         hint.setWordWrap(True)
@@ -123,12 +125,20 @@ class UsbDevicesDialog(VemuDialog):
             description = str(device.get("description") or "USB device")
             if device.get("hub"):
                 description += " (hub)"
+            if device.get("missing"):
+                status = "Missing"
+                description = (
+                    f"Missing USB device "
+                    f"({device.get('vendor', '')}:{device.get('product', '')})"
+                )
+            else:
+                status = "Attached" if attached else "Host"
             values = [
                 description,
                 str(device.get("vendor_name") or ""),
                 f"{device.get('vendor', '')} / {device.get('product', '')}",
                 f"{device.get('bus', '')}/{device.get('device', '')}",
-                "Attached" if attached else "Host",
+                status,
             ]
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
@@ -151,10 +161,13 @@ class UsbDevicesDialog(VemuDialog):
         device = self._selected()
         attached = bool(device and device.get("attached"))
         hub = bool(device and device.get("hub"))
+        missing = bool(device and device.get("missing"))
         self.attach_button.setEnabled(
-            device is not None and not attached and not hub
+            device is not None and not attached and not hub and not missing
         )
-        self.detach_button.setEnabled(device is not None and attached)
+        self.detach_button.setEnabled(
+            device is not None and (attached or missing)
+        )
 
     def _attach(self) -> None:
         device = self._selected()

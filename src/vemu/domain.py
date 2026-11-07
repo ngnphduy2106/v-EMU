@@ -13,7 +13,6 @@ import uuid as uuidlib
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 
-from . import __version__
 from . import system_identity
 from .errors import ValidationError
 
@@ -240,7 +239,7 @@ class DomainSpec:
             # a user setting.  Only new x86_64 domains reach this path.
             sysinfo = ET.SubElement(domain, "sysinfo", type="smbios")
             for group, entries in system_identity.smbios_groups(
-                __version__, self.uuid
+                system_identity.PLATFORM_VERSION, self.uuid
             ).items():
                 group_element = ET.SubElement(sysinfo, group)
                 for name, value in entries:
@@ -248,7 +247,9 @@ class DomainSpec:
                         group_element, "entry", name=name
                     ).text = value
             oem = ET.SubElement(sysinfo, "oemStrings")
-            for value in system_identity.oem_strings(__version__):
+            for value in system_identity.oem_strings(
+                system_identity.PLATFORM_VERSION
+            ):
                 ET.SubElement(oem, "entry").text = value
 
         os_element = ET.SubElement(domain, "os")

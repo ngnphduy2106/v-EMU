@@ -16,6 +16,16 @@ VMs created before the firmware update keep their existing firmware/NVRAM.
 VMs already pointing at the custom firmware under `/usr/share/vemu/firmware`
 receive fixes when `setup.sh` is run again; no VM recreation is required.
 
+## Version
+
+Current platform/firmware version: **1.0**, stored in `firmware/VERSION` and
+installed as `/usr/share/vemu/firmware/VERSION`.
+
+This version is **independent** of the v-EMU application release (`0.x.y`).
+Bump it only when the firmware, EDK2 pin, patch, logo or Secure Boot CA change;
+application releases do not require a firmware rebuild. New x86_64 VMs use the
+same platform version in SMBIOS.
+
 ## Source and licenses
 
 - EDK II: `https://github.com/tianocore/edk2`, commit `5a52bd1`.

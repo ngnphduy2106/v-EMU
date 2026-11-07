@@ -296,7 +296,9 @@ lists leases and reservations.
 
 Each VM opens its own noVNC window (graphics or serial). The inspector mini
 console is a screenshot preview. USB passthrough and the firmware/BIOS menu are
-in the VM context menu.
+in the VM context menu. If a USB device was unplugged, vEMU marks it **Missing**
+so you can detach it; starting a VM removes missing USB entries and shows a
+warning instead of blocking the start.
 
 The native toolbar starts hidden so the guest fills the window; press `F9` or
 `Ctrl+Shift+T` to show it. The console **Power** menu keeps only **Start** and

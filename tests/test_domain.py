@@ -106,6 +106,12 @@ class DomainTests(unittest.TestCase):
             sysinfo.findtext("./system/entry[@name='product']"), "vEMU"
         )
         self.assertEqual(
+            sysinfo.findtext("./system/entry[@name='version']"), "1.0"
+        )
+        self.assertEqual(
+            sysinfo.findtext("./bios/entry[@name='version']"), "vEMU 1.0"
+        )
+        self.assertEqual(
             sysinfo.findtext("./system/entry[@name='serial']"),
             "VEMU-11111111",
         )

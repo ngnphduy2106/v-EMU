@@ -349,9 +349,12 @@ def domains_list(uri: str = "qemu:///system") -> list[dict[str, Any]]:
 def domain_start(domain: str, uri: str = "qemu:///system") -> dict[str, Any]:
     with LibvirtBackend(uri) as backend:
         _require_writable(backend, domain)
-        backend.start(domain)
+        removed_usb = backend.start(domain)
         _apply_runtime_profile(backend, domain)
-        return _domain_dict(backend.info(domain))
+        payload = _domain_dict(backend.info(domain))
+        if removed_usb:
+            payload["usb_removed"] = removed_usb
+        return payload
 
 
 def runtime_profile_get() -> dict[str, Any]:

@@ -289,8 +289,8 @@ class DaemonBackend:
             },
         )
 
-    def start(self, name: str) -> None:
-        self.client.call("domain.start", {"domain": name})
+    def start(self, name: str) -> dict:
+        return self.client.call("domain.start", {"domain": name})
 
     def resume(self, name: str) -> None:
         self.client.call("domain.resume", {"domain": name})
@@ -2665,8 +2665,9 @@ class MainWindow(QMainWindow):
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         QApplication.processEvents()
         error: str | None = None
+        result = None
         try:
-            action()
+            result = action()
         except VemuError as exc:
             error = str(exc)
         finally:
@@ -2677,6 +2678,19 @@ class MainWindow(QMainWindow):
             return
         self._refresh_and_select(name)
         self.statusBar().showMessage(message, 3000)
+        removed = result.get("usb_removed") if isinstance(result, dict) else None
+        if removed:
+            devices = ", ".join(
+                f"{item.get('vendor', '')}:{item.get('product', '')}"
+                for item in removed
+            )
+            QMessageBox.warning(
+                self,
+                "USB devices unavailable",
+                f"Started {name} without unavailable USB device(s): "
+                f"{devices}.\n\nThey were removed from the VM configuration. "
+                "Reconnect the device and attach it again when needed.",
+            )
 
     def _refresh_and_select(self, name: str) -> None:
         self.refresh()

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -680,6 +681,42 @@ class LibvirtBackend:
                 )
         return attached
 
+    def _usb_host_devices(self) -> list[Any]:
+        try:
+            return list(self.connection.listAllDevices(0))
+        except self._libvirt.libvirtError as exc:  # type: ignore[attr-defined]
+            text = str(exc)
+            if "virtnodedevd" in text or "Failed to connect socket" in text:
+                raise Conflict(
+                    "libvirt USB device service is unavailable. "
+                    "Run `vemu doctor`, then on modular libvirt start "
+                    "virtnodedevd.socket (for example: "
+                    "sudo systemctl start virtnodedevd.socket). "
+                    "Do not run libvirtd and virtqemud at the same time."
+                ) from exc
+            raise VemuError(f"Cannot list USB devices: {exc}") from exc
+
+    def _usb_present_ids(self) -> set[tuple[str, str]]:
+        present: set[tuple[str, str]] = set()
+        for device in self._usb_host_devices():
+            try:
+                root = ET.fromstring(device.XMLDesc(0))
+            except (ET.ParseError, self._libvirt.libvirtError):
+                continue
+            capability = root.find("capability[@type='usb_device']")
+            if capability is None:
+                continue
+            vendor = capability.find("vendor")
+            product = capability.find("product")
+            if vendor is not None and product is not None:
+                present.add(
+                    (
+                        str(vendor.get("id", "")).lower(),
+                        str(product.get("id", "")).lower(),
+                    )
+                )
+        return present
+
     def usb_devices(self, name: str | None = None) -> list[dict[str, Any]]:
         """Return USB host devices, optionally marking those passed to *name*."""
         attached = (
@@ -688,7 +725,8 @@ class LibvirtBackend:
             else set()
         )
         result: list[dict[str, Any]] = []
-        for device in self.connection.listAllDevices(0):
+        seen: set[tuple[str, str]] = set()
+        for device in self._usb_host_devices():
             try:
                 root = ET.fromstring(device.XMLDesc(0))
             except (ET.ParseError, self._libvirt.libvirtError):
@@ -705,6 +743,7 @@ class LibvirtBackend:
             if not vendor or not product or vendor == "0x1d6b":
                 # Root hubs are not useful passthrough targets.
                 continue
+            seen.add((vendor, product))
             description = (product_element.text or "").strip()
             is_hub = "hub" in description.lower()
             is_hid = False
@@ -747,17 +786,88 @@ class LibvirtBackend:
                     "bus": capability.findtext("bus", ""),
                     "device": capability.findtext("device", ""),
                     "attached": (vendor, product) in attached,
+                    "present": True,
+                    "missing": False,
                     "hub": is_hub,
+                }
+            )
+        for vendor, product in sorted(attached - seen):
+            result.append(
+                {
+                    "name": "",
+                    "vendor": vendor,
+                    "product": product,
+                    "description": "Missing USB device",
+                    "vendor_name": "Not connected",
+                    "bus": "",
+                    "device": "",
+                    "attached": True,
+                    "present": False,
+                    "missing": True,
+                    "hub": False,
                 }
             )
         result.sort(
             key=lambda item: (
+                0 if item.get("present", True) else 1,
                 int(item["bus"] or 0),
                 int(item["device"] or 0),
                 str(item["description"]),
             )
         )
         return result
+
+    def missing_usb_devices(self, name: str) -> list[dict[str, str]]:
+        """List configured USB hostdevs whose device is no longer present."""
+        configured = self._usb_attached_set(self.config_xml(name))
+        if not configured:
+            return []
+        try:
+            present = self._usb_present_ids()
+        except VemuError:
+            # Cannot verify; let libvirt report the state on start.
+            return []
+        return [
+            {"vendor": vendor, "product": product}
+            for vendor, product in sorted(configured - present)
+        ]
+
+    def _remove_usb_hostdevs(
+        self, name: str, wanted: set[tuple[str, str]]
+    ) -> list[dict[str, str]]:
+        if not wanted:
+            return []
+        root = ET.fromstring(self.config_xml(name))
+        devices = root.find("devices")
+        if devices is None:
+            return []
+        removed: list[dict[str, str]] = []
+        for hostdev in list(devices.findall("hostdev[@type='usb']")):
+            source = hostdev.find("source")
+            if source is None:
+                continue
+            vendor_element = source.find("vendor")
+            product_element = source.find("product")
+            if vendor_element is None or product_element is None:
+                continue
+            key = (
+                str(vendor_element.get("id", "")).lower(),
+                str(product_element.get("id", "")).lower(),
+            )
+            if key in wanted:
+                devices.remove(hostdev)
+                removed.append({"vendor": key[0], "product": key[1]})
+        if removed:
+            self.redefine_domain(
+                name, ET.tostring(root, encoding="unicode")
+            )
+        return removed
+
+    def drop_missing_usb_devices(self, name: str) -> list[dict[str, str]]:
+        """Remove stale USB hostdevs from the persistent domain definition."""
+        missing = self.missing_usb_devices(name)
+        wanted = {(item["vendor"], item["product"]) for item in missing}
+        return self._remove_usb_hostdevs(name, wanted)
 
     def attach_usb(self, name: str, vendor: str, product: str) -> dict[str, Any]:
         vendor = vendor.lower()
@@ -767,6 +877,14 @@ class LibvirtBackend:
         domain = self.domain(name)
         state = domain.state()[0]
         config = self.config_xml(name)
+        if (vendor, product) in self._usb_attached_set(config):
+            raise Conflict(
+                f"USB device {vendor}:{product} is already attached to '{name}'."
+            )
+        if (vendor, product) not in self._usb_present_ids():
+            raise NotFound(
+                f"USB device {vendor}:{product} is not connected to this host."
+            )
         root = ET.fromstring(config)
         has_controller = (
             root.find("./devices/controller[@type='usb']") is not None
@@ -1465,10 +1583,11 @@ class LibvirtBackend:
                 continue
         return ejected
 
-    def start(self, name: str) -> None:
+    def start(self, name: str) -> list[dict[str, str]]:
         domain = self.domain(name)
         if domain.state()[0] == 1:
             raise Conflict(f"Domain '{name}' is already running.")
+        removed_usb = self.drop_missing_usb_devices(name)
         installed_target = self.installed_disk_target(name)
         if installed_target is not None:
             self.eject_installer_media(name)
@@ -1491,7 +1610,39 @@ class LibvirtBackend:
                 pass
         if updated != applied:
             self.redefine_domain(name, updated)
-        domain.create()
+        try:
+            domain.create()
+        except self._libvirt.libvirtError as exc:  # type: ignore[attr-defined]
+            text = str(exc)
+            retry = set()
+            for vendor, product in re.findall(
+                r"Did not find USB device ([0-9a-fA-F]{4}):([0-9a-fA-F]{4})",
+                text,
+            ):
+                retry.add((f"0x{vendor.lower()}", f"0x{product.lower()}"))
+            if retry:
+                removed = self._remove_usb_hostdevs(name, retry)
+                if removed:
+                    domain = self.domain(name)
+                    try:
+                        domain.create()
+                    except self._libvirt.libvirtError as retry_exc:
+                        if "Did not find USB device" in str(retry_exc):
+                            raise Conflict(
+                                "A configured USB device is no longer "
+                                "connected. Reconnect it, or open USB Devices "
+                                "and detach the missing entry before starting."
+                            ) from retry_exc
+                        raise
+                    return (removed_usb or []) + removed
+            if "virtnodedevd" in text or "Failed to connect socket" in text:
+                raise Conflict(
+                    "libvirt USB device service is unavailable. Run "
+                    "`vemu doctor`, then on modular libvirt start "
+                    "virtnodedevd.socket and try again."
+                ) from exc
+            raise
+        return removed_usb
 
     def shutdown(
         self,

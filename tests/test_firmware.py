@@ -33,6 +33,18 @@ class FirmwareTests(unittest.TestCase):
         path.write_bytes(b"fw")
         return path
 
+    def test_platform_version_is_independent_of_app_version(self) -> None:
+        from vemu.firmware import firmware_version
+
+        repo = Path(__file__).resolve().parents[1] / "firmware"
+        self.assertEqual(
+            (repo / "VERSION").read_text(encoding="utf-8").strip(), "1.0"
+        )
+        with mock.patch.dict(
+            os.environ, {"VEMU_FIRMWARE_DIR": str(repo)}
+        ):
+            self.assertEqual(firmware_version(), "1.0")
+
     def test_missing_firmware_returns_none(self) -> None:
         with mock.patch.dict(os.environ, {"VEMU_FIRMWARE_DIR": str(self.root)}):
             self.assertIsNone(firmware_for("aarch64"))
