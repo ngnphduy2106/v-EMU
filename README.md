@@ -122,6 +122,30 @@ Create lab storage and a NAT network from the first-run wizard, or from
 | [`SECURITY.md`](SECURITY.md) | Vulnerability reporting and trust model |
 | [`DISCLAIMER.md`](DISCLAIMER.md) | Warranty, data/backup and liability terms |
 
+## Roadmap
+
+### 0.2.0 (planned)
+
+0.2.0 is planned and **not implemented in this tree yet**; 0.1.0 remains the
+current release. The planned scope is intentionally narrow:
+
+1. **Bug fixes** — stability and regression fixes across the VM lifecycle,
+   display/sleep and video paths, USB/libvirt handling, and adoption/migration.
+   No new product surface beyond those fixes.
+2. **External VNC client for better memory usage** — an optional local VNC
+   workflow that lets users open a console in an external viewer instead of
+   keeping the embedded console stack in memory. v-EMU remains local-only; the
+   embedded console stays available.
+3. **OS image builder** — optional local image builds through the upstream
+   `image-builder` CLI using shareable native blueprints. Native support is
+   limited to Fedora/RHEL-family hosts with `image-builder` installed;
+   Debian/Ubuntu/SUSE hide the feature in 0.2.0. qcow2 is the primary artifact,
+   installer ISO secondary. v-EMU orchestrates the build and does not
+   distribute images or replace `image-builder`.
+
+These items are directional and subject to change. Nothing in this section is
+part of the 0.1.0 release.
+
 ## Non-goals
 
 - multi-host cluster, scheduler, HA or live migration;
