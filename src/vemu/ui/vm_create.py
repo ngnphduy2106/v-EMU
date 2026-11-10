@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..errors import VemuError
+from ..virtcheck import domain_type_for, host_arch
 from .components import FieldLabel, form_layout
 from .theme import LIGHT, Tokens
 from ..provision import (
@@ -628,9 +629,10 @@ class NewVmDialog(VemuDialog):
             (
                 f"Architecture: {self.arch_combo.currentText()}"
                 + (
-                    " (TCG emulation)"
-                    if self.arch_combo.currentData() != "x86_64"
-                    else " (KVM)"
+                    " (KVM)"
+                    if domain_type_for(str(self.arch_combo.currentData()))
+                    == "kvm"
+                    else " (TCG emulation)"
                 )
             ),
             f"Install ISO: {self.iso_edit.text().strip() or '(not set)'}",
@@ -690,9 +692,9 @@ class NewVmDialog(VemuDialog):
     # ------------------------------------------------------------------ fields
 
     def _apply_capabilities(self) -> None:
-        caps = self._fetch_capabilities("x86_64")
+        caps = self._fetch_capabilities(host_arch())
         self._populate_architectures(caps)
-        self._update_combo_options(caps, "x86_64")
+        self._update_combo_options(caps, host_arch())
         self._arch_changed()
 
     def _fetch_capabilities(self, arch: str) -> dict[str, Any]:
@@ -708,16 +710,17 @@ class NewVmDialog(VemuDialog):
             for item in caps.get("arches", [])
             if item.get("name") in supported
         ]
-        if "x86_64" not in names:
-            names.insert(0, "x86_64")
+        native = host_arch()
+        if native not in names:
+            names.insert(0, native)
         names = sorted(
-            dict.fromkeys(names), key=lambda item: (item != "x86_64", item)
+            dict.fromkeys(names), key=lambda item: (item != native, item)
         )
         if not QSettings("v-EMU", "v-EMU").value(
             "ui/cross_arch", False, type=bool
         ):
-            names = ["x86_64"]
-        current = str(self.arch_combo.currentData() or "x86_64")
+            names = [native]
+        current = str(self.arch_combo.currentData() or native)
         self.arch_combo.blockSignals(True)
         self.arch_combo.clear()
         for name in names:
@@ -774,14 +777,15 @@ class NewVmDialog(VemuDialog):
             and (not emulated or value in {"virtio", "vga", "ramfb"})
         ] or (["virtio", "vga", "ramfb"] if emulated else ["virtio", "vga", "qxl", "cirrus", "vmvga", "bochs"])
         self._replace_combo(self.video_combo, video_values)
+        tcg = domain_type_for(arch) == "qemu"
         allowed_cpu = (
-            {"maximum"} if emulated else {"host-passthrough", "host-model"}
+            {"maximum"} if tcg else {"host-passthrough", "host-model"}
         )
         cpu_values = [
             value
             for value in caps.get("cpu_modes", [])
             if value in allowed_cpu
-        ] or (["maximum"] if emulated else ["host-passthrough", "host-model"])
+        ] or (["maximum"] if tcg else ["host-passthrough", "host-model"])
         self._replace_combo(self.cpu_combo, cpu_values)
         machines = ["q35", "pc"] if not emulated else ["virt"]
         self._replace_combo(self.machine_combo, machines)
@@ -798,9 +802,16 @@ class NewVmDialog(VemuDialog):
                 self.firmware_combo.setCurrentIndex(0)
             self.firmware_combo.blockSignals(False)
             self._select_data(self.machine_combo, "q35")
-            self._select_data(self.cpu_combo, "host-passthrough")
             self._select_data(self.iso_bus_combo, "sata")
-            self.arch_note.setText("Native x86_64 KVM acceleration.")
+            if domain_type_for(arch) == "kvm":
+                self._select_data(self.cpu_combo, "host-passthrough")
+                self.arch_note.setText("Native x86_64 KVM acceleration.")
+            else:
+                self._select_data(self.cpu_combo, "maximum")
+                self.arch_note.setText(
+                    f"x86_64 emulation uses TCG on this {host_arch()} host: "
+                    "much slower than KVM."
+                )
             self.defaults_note.setText(
                 "Defaults follow the guest OS. Windows, BSD and ESXi use "
                 "SATA + e1000e; Linux uses virtio. NVMe requires q35."
@@ -815,12 +826,20 @@ class NewVmDialog(VemuDialog):
             self._select_data(self.machine_combo, "virt")
             self._select_data(self.disk_bus_combo, "virtio")
             self._select_data(self.iso_bus_combo, "usb")
-            self._select_data(self.cpu_combo, "maximum")
-            self.arch_note.setText(
-                f"{arch} emulation uses TCG on this x86_64 host: much slower "
-                "than KVM. UEFI firmware is required; use an architecture-"
-                "matched ISO. Windows unattended install is disabled."
-            )
+            if domain_type_for(arch) == "kvm":
+                self._select_data(self.cpu_combo, "host-passthrough")
+                self.arch_note.setText(
+                    f"Native {arch} KVM acceleration. UEFI firmware is "
+                    "required; use an architecture-matched ISO."
+                )
+            else:
+                self._select_data(self.cpu_combo, "maximum")
+                self.arch_note.setText(
+                    f"{arch} emulation uses TCG on this {host_arch()} host: "
+                    "much slower than KVM. UEFI firmware is required; use an "
+                    "architecture-matched ISO. Windows unattended install is "
+                    "disabled."
+                )
             self.defaults_note.setText(
                 "TCG defaults: virtio or NVMe disks, USB installer media and "
                 "ramfb for Windows/Other; Linux uses virtio-gpu. NVMe is "
@@ -1041,10 +1060,12 @@ class NewVmDialog(VemuDialog):
         self._select_data(self.nic_combo, preset["nic"])
         self._select_data(self.firmware_combo, preset["firmware"])
         self._select_data(self.machine_combo, preset["machine"])
-        if arch == "x86_64":
+        if arch == "x86_64" or domain_type_for(arch) == "kvm":
             video = str(preset["video"])
             vcpus = int(preset["vcpus"])
             memory = float(preset["memory"])
+            if arch != "x86_64":
+                video = "ramfb" if family in {"windows", "other"} else "virtio"
         else:
             # TCG guests get host-relative recommendations; Ramfb keeps
             # Windows/WinPE visible without a virtio-gpu driver.
@@ -1121,7 +1142,7 @@ class NewVmDialog(VemuDialog):
             if hasattr(self, "arch_combo")
             else "x86_64"
         )
-        if arch != "x86_64":
+        if domain_type_for(arch) == "qemu":
             self.helper_label.setText(
                 f"{arch} runs under TCG emulation: slow but useful for cross-"
                 "architecture labs. Use virtio/NVMe disks, USB installer "

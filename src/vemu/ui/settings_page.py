@@ -20,11 +20,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..virtcheck import host_arch
 from .. import __version__
 from ..errors import VemuError
 from .components import PageHeader, form_layout
 from .tokens import COMPONENT, SPACE
 from .widgets import ComboBox
+
+
+def _cross_arches() -> tuple[str, ...]:
+    """Guest arches that need TCG on this host."""
+    return tuple(
+        arch for arch in ("x86_64", "aarch64", "riscv64") if arch != host_arch()
+    )
 
 
 class SettingsPage(QWidget):
@@ -231,7 +239,9 @@ class SettingsPage(QWidget):
         advanced = QGroupBox("Advanced")
         advanced_layout = QVBoxLayout(advanced)
         self.cross_arch_check = QCheckBox(
-            "Enable cross-architecture guests (aarch64/riscv64)"
+            "Enable cross-architecture guests ("
+            + "/".join(_cross_arches())
+            + ")"
         )
         self.cross_arch_check.setChecked(
             self._settings.value("ui/cross_arch", False, type=bool)
@@ -377,7 +387,7 @@ class SettingsPage(QWidget):
 
     def refresh_cross_arch(self) -> None:
         available: list[str] = []
-        for arch in ("aarch64", "riscv64"):
+        for arch in _cross_arches():
             payload = self._capability_payload(arch)
             if payload and payload.get("machines"):
                 available.append(arch)
@@ -391,13 +401,13 @@ class SettingsPage(QWidget):
         self.cross_arch_check.blockSignals(False)
         if enabled:
             missing = [
-                arch for arch in ("aarch64", "riscv64")
+                arch for arch in _cross_arches()
                 if arch not in available
             ]
             text = (
                 "Available cross-architecture QEMU: "
                 + ", ".join(available)
-                + ". TCG is much slower than native x86_64 (no hardware "
+                + f". TCG is much slower than native {host_arch()} (no hardware "
                 "virtualization or GPU acceleration), and needs the v-EMU UEFI "
                 "firmware plus architecture-matched ISOs."
             )

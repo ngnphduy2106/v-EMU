@@ -1311,7 +1311,7 @@ class VmConfigTests(unittest.TestCase):
         from vemu.vmconfig import ensure_tcg_tuning
 
         xml = (
-            "<domain><os><type arch='aarch64' machine='virt'/></os>"
+            "<domain type='qemu'><os><type arch='aarch64' machine='virt'/></os>"
             "<features><acpi/></features><devices/></domain>"
         )
         updated = ensure_tcg_tuning(xml)
@@ -1323,10 +1323,13 @@ class VmConfigTests(unittest.TestCase):
         self.assertEqual(root.find("./devices/rng").get("model"), "virtio")
         self.assertEqual(ensure_tcg_tuning(updated), updated)
         x86 = (
-            "<domain><os><type arch='x86_64' machine='q35'/></os>"
+            "<domain type='kvm'><os><type arch='x86_64' machine='q35'/></os>"
             "<devices/></domain>"
         )
         self.assertEqual(ensure_tcg_tuning(x86), x86)
+        # aarch64 under KVM (ARM host): libvirt rejects <tcg> on kvm domains.
+        arm_kvm = x86.replace("x86_64", "aarch64").replace("q35", "virt")
+        self.assertEqual(ensure_tcg_tuning(arm_kvm), arm_kvm)
 
     def test_ensure_suspend_disabled(self) -> None:
         from vemu.vmconfig import ensure_suspend_disabled

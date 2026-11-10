@@ -24,6 +24,54 @@ _X86_ARCHES = {"x86_64", "amd64", "i386", "i486", "i586", "i686"}
 _VIRT_FLAGS = {"vmx": "Intel VT-x", "svm": "AMD-V (SVM)"}
 
 
+def host_arch() -> str:
+    """Return the host architecture in libvirt spelling.
+
+    ``VEMU_HOST_ARCH`` overrides detection (tests, debugging).
+    """
+    machine = (
+        os.environ.get("VEMU_HOST_ARCH") or platform.machine()
+    ).lower()
+    return {"amd64": "x86_64", "arm64": "aarch64"}.get(machine, machine)
+
+
+def domain_type_for(arch: str) -> str:
+    """KVM runs only guests of the host architecture; others need TCG."""
+    return "kvm" if arch == host_arch() else "qemu"
+
+
+def performance_cpuset(cpu_root: str | Path = "/sys/devices/system/cpu") -> str:
+    """Return the fastest cores of a hybrid aarch64 host as a libvirt cpuset.
+
+    On big.LITTLE hosts (e.g. ASUS GX10: Cortex-X925 + Cortex-A725) a
+    host-passthrough vCPU that migrates between core types sees different
+    MIDR/PMU values and uneven speed, so KVM vCPUs stay on the big cores.
+    Returns "" on x86 hosts and on homogeneous CPUs.
+    """
+    # ponytail: aarch64 only; Intel P/E hybrids keep upstream behaviour.
+    if host_arch() != "aarch64":
+        return ""
+    speeds: dict[int, int] = {}
+    for path in Path(cpu_root).glob("cpu[0-9]*/cpufreq/cpuinfo_max_freq"):
+        try:
+            speeds[int(path.parent.parent.name[3:])] = int(path.read_text())
+        except (OSError, ValueError):
+            continue
+    if len(set(speeds.values())) < 2:
+        return ""
+    top = max(speeds.values())
+    cpus = sorted(cpu for cpu, speed in speeds.items() if speed == top)
+    ranges: list[str] = []
+    start = prev = cpus[0]
+    for cpu in cpus[1:] + [-1]:
+        if cpu == prev + 1:
+            prev = cpu
+            continue
+        ranges.append(str(start) if start == prev else f"{start}-{prev}")
+        start = prev = cpu
+    return ",".join(ranges)
+
+
 def _read_cpuinfo(path: Path) -> tuple[set[str], str]:
     """Return CPU flags and the vendor string from a cpuinfo-style file."""
     flags: set[str] = set()

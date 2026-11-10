@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 
 from . import system_identity
+from .virtcheck import domain_type_for, performance_cpuset
 from .errors import ValidationError
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\[\]-]{0,63}$")
@@ -39,7 +40,7 @@ CPU_MODES_TCG = ("maximum",)
 
 def cpu_modes_for_arch(arch: str) -> tuple[str, ...]:
     """Return the CPU modes that make sense for a KVM or TCG guest."""
-    return CPU_MODES_KVM if arch == "x86_64" else CPU_MODES_TCG
+    return CPU_MODES_KVM if domain_type_for(arch) == "kvm" else CPU_MODES_TCG
 
 
 def disk_target_name(bus: str, ordinal: int = 0) -> str:
@@ -125,7 +126,7 @@ class DomainSpec:
     networks: list[Network] = field(default_factory=list)
     arch: str = "x86_64"
     machine: str = "q35"
-    domain_type: str = "kvm"
+    domain_type: str = ""  # "" = kvm for host-arch guests, else qemu (TCG)
     firmware: str = "bios"
     cpu_mode: str = "host-passthrough"
     graphics: str = "vnc"
@@ -165,7 +166,11 @@ class DomainSpec:
                 ) from exc
         if self.firmware not in {"bios", "efi"}:
             raise ValidationError("Firmware must be 'bios' or 'efi'.")
-        allowed_modes = cpu_modes_for_arch(self.arch)
+        if not self.domain_type:
+            self.domain_type = domain_type_for(self.arch)
+        allowed_modes = (
+            CPU_MODES_KVM if self.domain_type == "kvm" else CPU_MODES_TCG
+        )
         if self.cpu_mode not in allowed_modes:
             raise ValidationError(
                 f"CPU mode '{self.cpu_mode}' is not valid for {self.arch}; "
@@ -233,6 +238,9 @@ class DomainSpec:
         current_memory.text = str(self.memory_mib)
         vcpu = ET.SubElement(domain, "vcpu", placement="static")
         vcpu.text = str(self.vcpus)
+        cpuset = performance_cpuset() if self.domain_type == "kvm" else ""
+        if cpuset:
+            vcpu.set("cpuset", cpuset)
 
         if self.arch == "x86_64":
             # The identity is product-owned and intentionally not exposed as
@@ -309,7 +317,7 @@ class DomainSpec:
             # libvirt requires SMM for a pflash loader with secure='yes';
             # OVMF's SMM build then enforces the PK/KEK/db key store.
             ET.SubElement(features, "smm", state="on")
-        if self.arch != "x86_64":
+        if self.domain_type == "qemu":
             # TCG needs a much larger translation cache for Windows/Linux
             # boots; the default (~32 MiB) thrashes and turns a five minute
             # boot into tens of minutes.

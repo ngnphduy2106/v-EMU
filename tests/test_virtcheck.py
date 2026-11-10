@@ -168,5 +168,53 @@ class VirtualizationOutputTests(unittest.TestCase):
         self.assertEqual(_exit_code(enabled, True), 0)
 
 
+
+class HostArchTests(unittest.TestCase):
+    def test_domain_type_follows_host(self) -> None:
+        from vemu.virtcheck import domain_type_for
+
+        with mock.patch.dict("os.environ", {"VEMU_HOST_ARCH": "aarch64"}):
+            self.assertEqual(domain_type_for("aarch64"), "kvm")
+            self.assertEqual(domain_type_for("x86_64"), "qemu")
+        with mock.patch.dict("os.environ", {"VEMU_HOST_ARCH": "x86_64"}):
+            self.assertEqual(domain_type_for("x86_64"), "kvm")
+            self.assertEqual(domain_type_for("aarch64"), "qemu")
+
+    def test_performance_cpuset_picks_big_cores(self) -> None:
+        from vemu.virtcheck import performance_cpuset
+
+        with tempfile.TemporaryDirectory() as root:
+            # GX10-like: X925 at 3.9 GHz on 5-9/15-19, A725 elsewhere.
+            for cpu in range(20):
+                freq = 3900000 if cpu in (*range(5, 10), *range(15, 20)) else 2808000
+                path = Path(root, f"cpu{cpu}", "cpufreq")
+                path.mkdir(parents=True)
+                (path / "cpuinfo_max_freq").write_text(str(freq))
+            with mock.patch.dict("os.environ", {"VEMU_HOST_ARCH": "aarch64"}):
+                self.assertEqual(performance_cpuset(root), "5-9,15-19")
+            with mock.patch.dict("os.environ", {"VEMU_HOST_ARCH": "x86_64"}):
+                self.assertEqual(performance_cpuset(root), "")
+
+    def test_arm_host_domain_uses_kvm_and_pins(self) -> None:
+        import xml.etree.ElementTree as ET
+
+        from vemu.domain import Disk, DomainSpec
+
+        with mock.patch.dict("os.environ", {"VEMU_HOST_ARCH": "aarch64"}), \
+                mock.patch("vemu.domain.performance_cpuset", return_value="5-9"):
+            spec = DomainSpec(
+                name="arm-kvm",
+                arch="aarch64",
+                machine="virt",
+                firmware="efi",
+                disks=[Disk(path="/tmp/arm-kvm.qcow2")],
+            )
+            root = ET.fromstring(spec.to_xml())
+        self.assertEqual(root.get("type"), "kvm")
+        self.assertEqual(root.find("cpu").get("mode"), "host-passthrough")
+        self.assertEqual(root.find("vcpu").get("cpuset"), "5-9")
+        self.assertIsNone(root.find("features/tcg"))
+
+
 if __name__ == "__main__":
     unittest.main()

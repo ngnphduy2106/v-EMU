@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from .virtcheck import host_arch
 from .backend import LibvirtBackend
 from .chain import find_commit_journals
 from .errors import ValidationError, VemuError
@@ -215,10 +216,14 @@ def run_checks(uri: str = "qemu:///system", *, config: str | None = None) -> dic
             _version(qemu_img) if qemu_img else "not found",
         )
     )
-    qemu_system = _qemu_system_x86()
+    native = host_arch()
+    qemu_system = (
+        _qemu_system_x86() if native == "x86_64"
+        else shutil.which(f"qemu-system-{native}")
+    )
     checks.append(
         _check(
-            "qemu-system-x86_64",
+            f"qemu-system-{native}",
             qemu_system is not None,
             qemu_system or "not found",
         )
@@ -274,20 +279,15 @@ def run_checks(uri: str = "qemu:///system", *, config: str | None = None) -> dic
             hint="optional TPM 2.0 emulator",
         )
     )
-    checks.append(
-        _tool_check(
-            "qemu-system-aarch64",
-            required=False,
-            hint="optional aarch64 TCG guests",
-        )
-    )
-    checks.append(
-        _tool_check(
-            "qemu-system-riscv64",
-            required=False,
-            hint="optional riscv64 TCG guests",
-        )
-    )
+    for arch in ("x86_64", "aarch64", "riscv64"):
+        if arch != native:
+            checks.append(
+                _tool_check(
+                    f"qemu-system-{arch}",
+                    required=False,
+                    hint=f"optional {arch} TCG guests",
+                )
+            )
     for name, path in (
         ("edk2-aarch64", "/usr/share/edk2/aarch64/QEMU_EFI-pflash.raw"),
         ("edk2-riscv64", "/usr/share/edk2/riscv/RISCV_VIRT_CODE.fd"),

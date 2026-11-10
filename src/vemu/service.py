@@ -32,6 +32,7 @@ from .chain import (
     find_commit_journals,
 )
 from .cloudinit import CloudInitConfig, build_cloud_init_iso
+from .virtcheck import domain_type_for
 from .domain import NAME_RE, Disk, DomainSpec, Network, disk_target_name
 from .firmware import firmware_for
 from .guest_virtiofs import mount as guest_virtiofs_mount
@@ -2098,12 +2099,16 @@ def _vm_import_impl(
                 disks=disk_specs,
                 networks=network_entries,
                 arch="x86_64",
-                domain_type="kvm",
+                domain_type=domain_type_for("x86_64"),
                 machine=str(specs["machine"]),
                 firmware=str(specs["firmware"]),
                 video=str(specs["video"]),
                 serial_console=bool(specs["serial_console"]),
-                cpu_mode="host-passthrough",
+                cpu_mode=(
+                    "host-passthrough"
+                    if domain_type_for("x86_64") == "kvm"
+                    else "maximum"
+                ),
                 guest_agent=True,
                 os_type=(
                     str(specs.get("os_type", "generic"))
@@ -4639,17 +4644,15 @@ def clone_create(
                         )
                     ],
                     arch=template.arch,
-                    domain_type=(
-                        "kvm" if template.arch == "x86_64" else "qemu"
-                    ),
+                    domain_type=domain_type_for(template.arch),
                     machine=template.machine,
                     firmware=clone_firmware,
                     video=template.video,
                     video_memory_mib=template.video_memory_mib,
                     cpu_mode=(
-                        "maximum"
-                        if template.arch != "x86_64"
-                        else "host-passthrough"
+                        "host-passthrough"
+                        if domain_type_for(template.arch) == "kvm"
+                        else "maximum"
                     ),
                     secure_boot=template.secure_boot,
                     tpm=template.tpm,
@@ -4730,21 +4733,22 @@ def vm_create_from_iso(
         raise ValidationError("Firmware must be bios or efi.")
     if not machine:
         raise ValidationError("Machine type must not be empty.")
-    emulated = arch != "x86_64"
-    if emulated:
-        domain_type = "qemu"
+    # non_x86: the guest uses the ARM/RISC-V "virt" platform.
+    # emulated: the guest arch differs from the host, so it runs under TCG.
+    domain_type = domain_type_for(arch)
+    emulated = domain_type == "qemu"
+    non_x86 = arch != "x86_64"
+    if non_x86:
         if machine in {"q35", "pc"} or "virt" not in machine:
             machine = "virt"
         firmware = "efi"
         disk_bus = disk_bus or "virtio"
         nic_model = nic_model or "virtio"
-        if cpu_mode in {"host-passthrough", "host-model"}:
-            cpu_mode = "maximum"
-    else:
-        domain_type = "kvm"
+    if emulated and cpu_mode in {"host-passthrough", "host-model"}:
+        cpu_mode = "maximum"
     if windows_unattend is None:
         unattend = (
-            not emulated
+            not non_x86
             and os_type == "windows"
             and os_variant in {"", "windows-server-2025"}
         )
@@ -4759,10 +4763,10 @@ def vm_create_from_iso(
             "The unattended answer file targets Windows Server 2025. "
             "Use a manual install for this Windows version."
         )
-    if unattend and emulated:
+    if unattend and non_x86:
         raise ValidationError(
             "Unattended Windows installs require x86_64; use the interactive "
-            "installer for emulated architectures."
+            "installer for other architectures."
         )
     # Treat non-Linux guests as generic hardware: virtio drivers may not be
     # present in the installer, so SATA + e1000e + VGA are the safe defaults.
@@ -4787,8 +4791,8 @@ def vm_create_from_iso(
         )
     if hyperv is None:
         hyperv = os_type == "windows" and arch == "x86_64"
-    if emulated:
-        # TCG guests keep virtio defaults unless the caller chose a device.
+    if non_x86:
+        # virt-platform guests keep virtio defaults unless the caller chose a device.
         nic_model = nic_model or "virtio"
         if disk_bus == "ide":
             disk_bus = "virtio"
@@ -4817,7 +4821,7 @@ def vm_create_from_iso(
         raise ValidationError(
             "The q35 machine has no IDE controller; use sata, scsi or virtio."
         )
-    if disk_bus == "nvme" and not emulated and "q35" not in machine:
+    if disk_bus == "nvme" and not non_x86 and "q35" not in machine:
         raise ValidationError(
             "NVMe disks need the q35 machine (PCIe); use sata, scsi or "
             "virtio with pc/i440fx."
@@ -4828,15 +4832,15 @@ def vm_create_from_iso(
             f"{arch} runs under TCG emulation on this host and is much slower "
             "than native KVM. Use an architecture-matched ISO and UEFI firmware."
         )
-        if os_type == "windows":
-            warnings.append(
-                "Windows on emulated architectures needs an architecture-"
-                "specific ISO; the Windows Server 2025 unattended template is "
-                "disabled."
-            )
+    if non_x86 and os_type == "windows":
+        warnings.append(
+            "Windows on non-x86 architectures needs an architecture-"
+            "specific ISO; the Windows Server 2025 unattended template is "
+            "disabled."
+        )
     if os_type == "windows" and (
         disk_bus != "sata" or nic_model != "e1000e" or video != "vga"
-    ) and not emulated:
+    ) and not non_x86:
         warnings.append(
             "Windows setup may not see virtio disk/NIC without drivers. "
             "SATA + e1000e + VGA are the safe defaults."
@@ -4860,11 +4864,11 @@ def vm_create_from_iso(
             "The ESXi installer commonly expects SATA + e1000e; verify that "
             "the selected devices are visible before installing."
         )
-    if firmware == "efi" and not emulated and "q35" not in machine:
+    if firmware == "efi" and not non_x86 and "q35" not in machine:
         warnings.append(
             "UEFI is normally used with q35; verify the guest firmware."
         )
-    if tpm and emulated:
+    if tpm and non_x86:
         if arch == "aarch64":
             warnings.append(
                 "TPM 2.0 is validated with the v-EMU aarch64 firmware; the "

@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..virtcheck import host_arch
 from ..errors import VemuError
 from .delegate import NoFocusDelegate
 from .dialogs import VemuDialog, dialog_layout
@@ -113,6 +114,7 @@ class TemplateImportDialog(VemuDialog):
 
         self.arch_combo = ComboBox()
         self.arch_combo.addItems(["x86_64", "aarch64"])
+        self.arch_combo.setCurrentText(host_arch())
         form.addRow("Architecture", self.arch_combo)
 
         self.firmware_combo = ComboBox()

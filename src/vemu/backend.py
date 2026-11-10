@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from . import drift
+from .virtcheck import domain_type_for
 from .errors import Conflict, MutationError, NotFound, ValidationError, VemuError
 from .vmconfig import (
     add_usb_controller,
@@ -443,7 +444,7 @@ class LibvirtBackend:
         virttype: str | None = None,
     ) -> dict[str, Any]:
         if virttype is None:
-            virttype = "kvm" if arch == "x86_64" else "qemu"
+            virttype = domain_type_for(arch)
         try:
             domain_caps = self.connection.getDomainCapabilities(
                 None, arch, machine, virttype

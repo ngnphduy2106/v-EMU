@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .virtcheck import host_arch
+
 from . import __version__
 from . import diagnose
 from . import lab
@@ -3367,8 +3369,8 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument(
         "--arch",
         choices=["x86_64", "aarch64", "riscv64"],
-        default="x86_64",
-        help="Guest architecture (aarch64/riscv64 use TCG emulation).",
+        default=host_arch(),
+        help="Guest architecture (default: host; other arches use TCG).",
     )
     create.add_argument(
         "--no-unattend",
@@ -4112,7 +4114,7 @@ def build_parser() -> argparse.ArgumentParser:
     config_caps.add_argument(
         "--arch",
         choices=["x86_64", "aarch64", "riscv64"],
-        default="x86_64",
+        default=host_arch(),
     )
     config_caps.add_argument("--uri", default="qemu:///system")
     config_caps.add_argument("--json", action="store_true")

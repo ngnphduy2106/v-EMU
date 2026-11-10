@@ -44,6 +44,10 @@ python3 -m venv .venv
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 ```
 
+The fixtures assume an x86_64 host. On an aarch64 host (e.g. ASUS GX10) run
+the suite with `VEMU_HOST_ARCH=x86_64`; `tests/test_virtcheck.py` covers the
+native aarch64 behaviour on its own.
+
 Some storage/daemon operations require root or the installed `vemud`; CI-style
 unit tests should not depend on a running production daemon.
 

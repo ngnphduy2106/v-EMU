@@ -202,6 +202,12 @@ case "$MODE" in
     legacy|precheck|uninstall) : ;;
 esac
 
+# Native aarch64 hosts (e.g. ASUS GX10) run aarch64 guests under KVM, so the
+# aarch64 QEMU/firmware set that --full adds is required there, not optional.
+if [[ $(uname -m) == aarch64 ]]; then
+    CROSS_ARCH=1
+fi
+
 if [[ "${VEMU_DEBUG:-}" == "1" ]]; then
     set -x
     PS4='+ [$(date +%H:%M:%S)] '

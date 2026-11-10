@@ -760,8 +760,8 @@ def ensure_tcg_tuning(xml: str) -> str:
     callers retry without it on failure.
     """
     root = ET.fromstring(xml)
-    arch = _root_arch(root)
-    if not arch or arch == "x86_64":
+    # libvirt rejects <tcg> on KVM domains; native aarch64 hosts run KVM.
+    if root.get("type") != "qemu":
         return xml
     features = root.find("features")
     if features is None:
